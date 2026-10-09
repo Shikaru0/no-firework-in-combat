@@ -1,9 +1,14 @@
 # no-firework-in-combat
+Server side mod to disable firework rocket interactions whilst in combat.
 
-## Setup
+## Dependencies
+The mod uses `isInCombat` method from
+`com.example.combatlogmod.cooldown.CooldownManager`
 
-For setup instructions, please see the [Fabric Documentation page](https://docs.fabricmc.net/develop/getting-started/creating-a-project#setting-up) related to the IDE that you are using.
+From [combat-log-mod](https://modrinth.com/mod/combat-log-mod) (MIT).
 
-## License
+## Bridge
+The mod gets `isInCombat` by reflection instead of a compile dependency, 
+this means you still need to manually add `combat-log-mod` to the server mods.
 
-This template is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects.
+It passes a `IPlayer` proxy, carrying the player's UUID.
