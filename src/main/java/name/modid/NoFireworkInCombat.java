@@ -11,6 +11,11 @@ import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+import static com.google.common.base.Defaults.defaultValue;
+
 public class NoFireworkInCombat implements ModInitializer {
 	public static final String MOD_ID = "no-firework-in-combat";
 
@@ -19,7 +24,8 @@ public class NoFireworkInCombat implements ModInitializer {
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-	private static final boolean disable = true;
+	private static Class<?> iPlayerClass;
+	private static Method isInCombat;
 
 	@Override
 	public void onInitialize() {
@@ -29,12 +35,33 @@ public class NoFireworkInCombat implements ModInitializer {
 
 		LOGGER.info("Hello Fabric world!");
 
-		UseItemCallback.EVENT.register(((player, _, hand) -> {
+		try {
+			iPlayerClass = Class.forName("com.example.mcbridge.api.IPlayer");
+			isInCombat = Class.forName("com.example.combatlogmod.cooldown.CooldownManager").getMethod("isInCombat", iPlayerClass);
+		} catch (ClassNotFoundException | NoSuchMethodException e) {
+            LOGGER.warn("[{}]", MOD_ID);
+        }
+
+        UseItemCallback.EVENT.register(((player, _, hand) -> {
+			if (isInCombat == null) return InteractionResult.PASS;
 			if (!(player instanceof ServerPlayer)) return InteractionResult.PASS;
 			if (!player.getItemInHand(hand).is(Items.FIREWORK_ROCKET)) return InteractionResult.PASS;
-			if (!disable) return InteractionResult.PASS;
 
-			return InteractionResult.FAIL;
+			try {
+				Object proxyInstance = Proxy.newProxyInstance(
+						iPlayerClass.getClassLoader(),
+						new Class<?>[]{iPlayerClass},
+						(_, m, _) -> m.getName().equals("getUUID")
+								? player.getUUID()
+								: defaultValue(m.getReturnType())
+				);
+				if ((boolean) isInCombat.invoke(null, proxyInstance)) {
+					return InteractionResult.FAIL;
+				}
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            return InteractionResult.PASS;
 		}));
 	}
 
